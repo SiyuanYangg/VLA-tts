@@ -32,7 +32,7 @@ pip install -e .
     with torch.no_grad():
         ### Calculate norm
         state = batch['observation.state'].to(device)
-        action = ['action'][:, :cfn_action_steps, :].to(device)
+        action = action[:, :cfn_action_steps, :].to(device)
         task = batch['task']
         batch_size = action.shape[0]
         action_flat = action.reshape(batch_size, -1)
