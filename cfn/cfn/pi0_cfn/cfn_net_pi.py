@@ -6,27 +6,16 @@ from torchvision.transforms import ToPILImage
 from transformers.models.idefics3.processing_idefics3 import Idefics3Processor
 from transformers.models.idefics3.image_processing_idefics3 import Idefics3ImageProcessor
 
-from action_emb import PerceiverConfig, SequentialActionEmb
+from cfn.action_emb import PerceiverConfig, SequentialActionEmb
 import torch.nn.functional as F
 from enum import Enum
 from transformers.image_utils import ChannelDimension
 import types
 
+from lerobot.common.policies.pi0.modeling_pi0 import PI0Policy
+from lerobot.common.datasets.transforms import AbsoluteActionTransform
+from torchvision.transforms import v2
 
-# ========== 简单 MLP 编码器 ========== #
-class SimpleMLPEncoder(nn.Module):
-    def __init__(self, input_dim, hidden_dims, output_dim):
-        super().__init__()
-        layers = []
-        dims = [input_dim] + hidden_dims
-        for i in range(len(hidden_dims)):
-            layers.append(nn.Linear(dims[i], dims[i+1]))
-            layers.append(nn.ReLU())
-        layers.append(nn.Linear(dims[-1], output_dim))
-        self.model = nn.Sequential(*layers)
-
-    def forward(self, x):
-        return self.model(x)
 
 
 # ========== CFN 主网络 ========== #
@@ -43,97 +32,32 @@ class CoinFlippingNetwork(nn.Module):
         return self.output(x)
 
 
-# def resize_torch(
-#     self, 
-#     image: torch.Tensor,
-#     size,
-#     data_format,
-#     input_data_format = None,
-#     antialias: bool = True,
-# ) -> torch.Tensor:
-#     """
-#     Resize a torch image tensor using torch.nn.functional.interpolate.
-
-#     Args:
-#         image (torch.Tensor): Tensor of shape (C, H, W) or (H, W, C)
-#         size (dict): Must contain 'longest_edge' or both 'height' and 'width'
-#         data_format: Desired output format, 'channels_first' or 'channels_last'
-#         input_data_format: Input format, inferred if None
-#         antialias: Whether to apply anti-aliasing during resizing
-#     Returns:
-#         torch.Tensor: Resized image in specified `data_format`
-#     """
-#     # Infer input format
-#     if input_data_format is None:
-#         input_data_format = (
-#             ChannelDimension.LAST if image.ndim == 3 and image.shape[-1] in [1, 3, 4]
-#             else ChannelDimension.FIRST
-#         )
-
-#     # Convert to channels_first for interpolate
-#     if input_data_format == ChannelDimension.LAST:
-#         image = image.permute(2, 0, 1)  # HWC → CHW
-
-#     c, h, w = image.shape
-
-#     # Compute target size
-#     if "longest_edge" in size:
-#         scale = size["longest_edge"] / max(h, w)
-#         new_h, new_w = int(round(h * scale)), int(round(w * scale))
-#     elif "height" in size and "width" in size:
-#         new_h, new_w = size["height"], size["width"]
-#     else:
-#         raise ValueError("size must contain 'longest_edge' or both 'height' and 'width'")
-
-#     image = image.unsqueeze(0).float()  # Add batch dim
-#     image = F.interpolate(image, size=(new_h, new_w), mode="bilinear", align_corners=False, antialias=antialias)
-#     image = image.squeeze(0)  # Remove batch dim
-
-#     # Return in desired format
-#     if data_format == ChannelDimension.LAST:
-#         image = image.permute(1, 2, 0)  # CHW → HWC
-
-#     import ipdb; ipdb.set_trace()
-#     return image
-
 
 # ========== CFN 包装类（支持图文编码） ========== #
-class CFNWrapper2(nn.Module):
+class CFNWrapper_pi(nn.Module):
     def __init__(self,
                  state_dim,
                  action_dim,
                  vision_model_name='HuggingFaceTB/SmolVLM-500M-Instruct',
                  embed_dim=128,
                  cfn_output_dim=64,
-                 cfn_action_steps=None
+                 cfn_action_steps=None,
+                 pretrained_checkpoint_path=None
                  ):
         super().__init__()
 
-        self.to_pil = ToPILImage()
+        print(f"loading pretrained checkpoint from {pretrained_checkpoint_path}...")
+        self.policy = PI0Policy.from_pretrained(pretrained_checkpoint_path, local_files_only=True).eval()
+        print("loading model success!")
 
-        # 状态 / 动作编码器
-        self.state_encoder = SimpleMLPEncoder(state_dim, [64, 64], embed_dim)
-        # self.action_encoder = SimpleMLPEncoder(action_dim, [64, 64], embed_dim)
+        import ipdb; ipdb.set_trace()
 
-        # 图文模型：SmolVLM
-        self.processor = AutoProcessor.from_pretrained(vision_model_name)
-        self.processor.image_processor.do_image_splitting = False
-        self.processor.image_processor.do_rescale = False
-        self.processor.image_processor.do_resize = False
-        # self.processor.image_processor.resize = types.MethodType(resize_torch, self.processor.image_processor) 
-        # self.processor.image_processor.size = {"longest_edge": 224}
-        # self.processor.image_processor.max_image_size = {"longest_edge": 224}
-        self.vision_model = AutoModelForVision2Seq.from_pretrained(
-            vision_model_name,
-            # torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
-            # _attn_implementation="eager",
-        )
-        self.vision_model.eval()
-        for p in self.vision_model.parameters():
-            p.requires_grad = False
+        # self.vision_model.eval()
+        # for p in self.vision_model.parameters():
+        #     p.requires_grad = False
 
-        hidden_size = self.vision_model.config.text_config.hidden_size
-        self.language_proj = nn.Linear(hidden_size, embed_dim)
+        # hidden_size = self.vision_model.config.text_config.hidden_size
+        # self.language_proj = nn.Linear(hidden_size, embed_dim)
 
         # 多模态融合预测模块
         total_feature_dim = embed_dim * 3
@@ -143,28 +67,7 @@ class CFNWrapper2(nn.Module):
         assert cfn_action_steps!=None, "cfn_action_steps can not be None !"
         self.cfn_action_steps = cfn_action_steps
 
-        perceiver_cfg = PerceiverConfig(
-            dim = embed_dim,
-            latent_dim = 512,
-            num_latents = 32,  # 256
-            depth = 2,
-            cross_heads = 1,
-            cross_dim_head = 64,
-            latent_heads = 8,
-            latent_dim_head = 64,
-            attn_dropout = 0.,  # 0.1
-            ff_dropout = 0.,    # 0.1
-            output_dim = embed_dim,
-            final_proj_head = True,
-        )
 
-        self.action_encoder = SequentialActionEmb(
-            num_agents=1,
-            num_steps_conditioning=self.cfn_action_steps,
-            action_dim=action_dim,
-            is_continuous_act=1,
-            perceiver_cfg=perceiver_cfg,
-        )
 
     def extract_images_from_batch(self, batch):
         """

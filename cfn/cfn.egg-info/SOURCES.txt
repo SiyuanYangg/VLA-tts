@@ -1,0 +1,19 @@
+setup.py
+cfn/__init__.py
+cfn/action_emb.py
+cfn/cfn_dataset.py
+cfn/cfn_dataset2.py
+cfn/cfn_net.py
+cfn/cfn_net2.py
+cfn/eval.py
+cfn/eval2.py
+cfn/test.py
+cfn/test2.py
+cfn/train copy 2.py
+cfn/train copy.py
+cfn/train.py
+cfn/train2.py
+cfn.egg-info/PKG-INFO
+cfn.egg-info/SOURCES.txt
+cfn.egg-info/dependency_links.txt
+cfn.egg-info/top_level.txt
