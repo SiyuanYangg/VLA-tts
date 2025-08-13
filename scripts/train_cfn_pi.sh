@@ -12,11 +12,11 @@ DATASET_ROOT="$HF_LEROBOT_HOME/$DATASET_REPO_ID"
 
 # Output directory
 # OUTPUT_DIR="/gemini/space/users/ysy/data/train_cfn/trans-0801"
-OUTPUT_DIR="${data_root}/train_cfn/temp"
-rm -r "${data_root}/train_cfn/temp"
+OUTPUT_DIR="${data_root}/train_cfn/cfn_pi-0813"
+# rm -r "${data_root}/train_cfn/temp"
 
 # Training Parameters
-BATCH_SIZE=64 # 64 # 32
+BATCH_SIZE=16 # 64 # 32
 # TOTAL_STEPS=280000
 SAVE_FREQ=1
 ACTION_CHUNK_SIZE=30

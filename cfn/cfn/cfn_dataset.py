@@ -213,7 +213,6 @@ class cfn_lerobot_dataset(LeRobotDataset):
         time1 = time.time()
         delta1 = time1 - start_time
 
-        images_list = []
         if self.image_transforms is not None:
             image_keys = self.meta.camera_keys
             for cam in image_keys:
@@ -225,8 +224,6 @@ class cfn_lerobot_dataset(LeRobotDataset):
                 else:
                     item[cam] = self.image_transforms(item[cam])
                 
-                images_list.append(item[cam])
-
         # Add task as a string
         task_idx = item["task_index"].item()
         item["task"] = self.meta.tasks[task_idx]

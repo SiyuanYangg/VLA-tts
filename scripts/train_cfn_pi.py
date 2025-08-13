@@ -189,11 +189,7 @@ def train(cfg: TrainPipelineConfig):
 
     t0 = time.time()
     model = CFNWrapper_pi(
-        state_dim=dataset[0]['observation.state'].shape[0],
-        action_dim=dataset[0]['action'].shape[1],
-        embed_dim=getattr(cfg.policy, "embed_dim", 128),
         cfn_output_dim=getattr(cfg.policy, "cfn_output_dim", 20),
-        cfn_action_steps=cfn_action_steps,
         pretrained_checkpoint_path="/gemini/platform/public/embodiedAI/users/ysy/data/dataset/rt_pi0_ckpt/25-07-21_12-18-18_pi0_gpu2_ck50_lr3e-5_bs12_s120K_seed42/checkpoints/060000/pretrained_model",
     ).to(device)
     t1 = time.time()
@@ -232,7 +228,6 @@ def train(cfg: TrainPipelineConfig):
         data_start = time.time()
 
         for batch in tqdm(dataloader, desc=f"Epoch {epoch + 1}"):
-
             
             data_end = time.time()
 
