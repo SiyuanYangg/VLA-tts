@@ -297,7 +297,7 @@ def train(cfg: TrainPipelineConfig):
         print(f"🕒 Epoch 总耗时: {time.time() - epoch_start:.2f}s")
 
         if (epoch + 1) % cfg.save_freq == 0:
-            torch.save(model.state_dict(), output_dir / f"model_epoch{epoch + 1}.pt")
+            torch.save(model.cfn.state_dict(), output_dir / f"model_epoch{epoch + 1}.pt")
 
         writer.close()
 

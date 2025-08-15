@@ -60,8 +60,10 @@ class CFNWrapper_pi(nn.Module):
         # self.language_proj = nn.Linear(hidden_size, embed_dim)
 
         # 多模态融合预测模块
-        self.cfn = CoinFlippingNetwork(input_dim=1024,
-                                       output_dim=cfn_output_dim)
+        self.cfn = CoinFlippingNetwork(
+            input_dim=1024,
+            output_dim=cfn_output_dim
+        ).to(next(self.policy.parameters()).device)
 
 
     def forward(self, batch):
