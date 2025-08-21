@@ -75,7 +75,7 @@ class CFNWrapper_pi(nn.Module):
                 batch[key] = batch[key].to(next(self.parameters()).device)
 
         with torch.no_grad():
-            actions, features = self.policy.get_feature(batch)
+            actions, features = self.policy.get_feature2(batch)
             features = features.to(next(self.parameters()).dtype)
         # import ipdb; ipdb.set_trace()
         return self.cfn(features)

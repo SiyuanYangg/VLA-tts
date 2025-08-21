@@ -20,7 +20,7 @@ do
     DATASET_ROOT="$HF_LEROBOT_HOME/$DATASET_REPO_ID"
 
     # Output directory
-    OUTPUT_DIR="${data_root}/train_cfn/cfn_pi-single_task-0815/${task}-0815"
+    OUTPUT_DIR="${data_root}/train_cfn/cfn_pi-single_task-newckpt-0821/${task}-0821"
     # rm -r "${data_root}/train_cfn/temp"
 
     # Training Parameters
@@ -43,3 +43,5 @@ do
         # --policy.chunk_size=$ACTION_CHUNK_SIZE --policy.n_action_steps=$ACTION_CHUNK_SIZE
 
 done
+
+zsh /gemini/space/users/ysy/000/0-1.sh

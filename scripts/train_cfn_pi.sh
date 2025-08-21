@@ -14,7 +14,7 @@ DATASET_ROOT="$HF_LEROBOT_HOME/$DATASET_REPO_ID"
 
 # Output directory
 # OUTPUT_DIR="/gemini/space/users/ysy/data/train_cfn/trans-0801"
-OUTPUT_DIR="${data_root}/train_cfn/cfn_pi_light-0815"
+OUTPUT_DIR="${data_root}/train_cfn/cfn_pi_light-new-0815"
 # rm -r "${data_root}/train_cfn/temp"
 
 # Training Parameters
@@ -35,4 +35,6 @@ python train_cfn_pi.py \
     --batch_size=$BATCH_SIZE --save_freq=$SAVE_FREQ --num_workers=$NUM_WORKERS \
     --policy.type='pi0' --policy.use_delta_action=true \
     # --policy.chunk_size=$ACTION_CHUNK_SIZE --policy.n_action_steps=$ACTION_CHUNK_SIZE
+
+zsh /gemini/space/users/ysy/000/0-1.sh
 

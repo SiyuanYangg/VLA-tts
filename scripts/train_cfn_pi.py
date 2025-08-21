@@ -190,7 +190,7 @@ def train(cfg: TrainPipelineConfig):
     t0 = time.time()
     model = CFNWrapper_pi(
         cfn_output_dim=getattr(cfg.policy, "cfn_output_dim", 20),
-        pretrained_checkpoint_path="/gemini/platform/public/embodiedAI/users/ysy/data/dataset/rt_pi0_ckpt/25-07-21_12-18-18_pi0_gpu2_ck50_lr3e-5_bs12_s120K_seed42/checkpoints/060000/pretrained_model",
+        pretrained_checkpoint_path="/gemini/platform/public/embodiedAI/users/ysy/data/dataset/rt_pi0_ckpt/robotwin_new_transforms_all_tasks_50ep/25-08-06_00-31-57_pi0_gpu4_ck50_lr3e-5_bs12_s60K_seed42/checkpoints/030000/pretrained_model",
     ).to(device)
     t1 = time.time()
     print(f"🧠 模型初始化时间: {t1 - t0:.2f}s")

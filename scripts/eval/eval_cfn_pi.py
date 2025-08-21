@@ -130,23 +130,27 @@ def yang_eval(cfg, model, task, task2, replace_action, is_train_data):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     cfg.validate()
 
-    # 训练集
-    # if is_train_data == 1:
-    #     cfg.dataset.root = f"/gemini/platform/public/embodiedAI/huggingface_cache/rhodes_lerobot/RoboTwin/eval_cfn/single_task/{task}_50epis"
-    # else:
-    # # 测试集
-    #     cfg.dataset.root = f"/gemini/platform/public/embodiedAI/huggingface_cache/rhodes_lerobot/RoboTwin/eval_cfn/single_task2/{task}_25epis"
-    # dataset, _ = make_dataset(cfg)
-    # cfg.dataset.root = f"/gemini/platform/public/embodiedAI/huggingface_cache/rhodes_lerobot/RoboTwin/eval_cfn/single_task/{task2}_50epis"
-    # dataset2, _ = make_dataset(cfg)
+    ##########################################################################################################################################
     if is_train_data == 1:
-        cfg.dataset.root = "/gemini/platform/public/embodiedAI/huggingface_cache/rhodes_lerobot/RoboTwin/all_tasks_50ep"
+    # 训练集
+        cfg.dataset.root = f"/gemini/platform/public/embodiedAI/huggingface_cache/rhodes_lerobot/RoboTwin/eval_cfn/single_task/{task}_50epis"
     else:
     # 测试集
         cfg.dataset.root = f"/gemini/platform/public/embodiedAI/huggingface_cache/rhodes_lerobot/RoboTwin/eval_cfn/single_task2/{task}_25epis"
     dataset, _ = make_dataset(cfg)
     cfg.dataset.root = f"/gemini/platform/public/embodiedAI/huggingface_cache/rhodes_lerobot/RoboTwin/eval_cfn/single_task/{task2}_50epis"
     dataset2, _ = make_dataset(cfg)
+
+    # if is_train_data == 1:
+    # # 训练集
+    #     cfg.dataset.root = "/gemini/platform/public/embodiedAI/huggingface_cache/rhodes_lerobot/RoboTwin/all_tasks_50ep"
+    # else:
+    # # 测试集
+    #     cfg.dataset.root = f"/gemini/platform/public/embodiedAI/huggingface_cache/rhodes_lerobot/RoboTwin/eval_cfn/single_task2/{task}_25epis"
+    # dataset, _ = make_dataset(cfg)
+    # cfg.dataset.root = f"/gemini/platform/public/embodiedAI/huggingface_cache/rhodes_lerobot/RoboTwin/eval_cfn/single_task/{task2}_50epis"
+    # dataset2, _ = make_dataset(cfg)
+    ##########################################################################################################################################
 
     dataloader = DataLoader(
         dataset,
@@ -289,13 +293,17 @@ def test(cfg: TrainPipelineConfig):
         pretrained_checkpoint_path="/gemini/platform/public/embodiedAI/users/ysy/data/dataset/rt_pi0_ckpt/25-07-21_12-18-18_pi0_gpu2_ck50_lr3e-5_bs12_s120K_seed42/checkpoints/060000/pretrained_model",
     ).to(device)
 
-    weight_path = '/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/cfn_pi-delta_ac-0814/model_epoch1.pt'
+    ckpt_task = "block_hammer_beat"
+    weight_path = f"/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/cfn_pi-single_task-0815/{ckpt_task}-0815/model_epoch1.pt"
+    # weight_path = f'/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/cfn_pi-delta_ac-0814/model_epoch1.pt'
     # 加载训练好的权重
     print(f"🔍 加载模型权重: {weight_path}")
-    model.load_state_dict(torch.load(weight_path, map_location=device))
+    model.cfn.load_state_dict(torch.load(weight_path, map_location=device))
     model.eval()
 
+    # def yang_eval(cfg, model, task, task2, replace_action, is_train_data):
     yang_eval(cfg, model, "block_hammer_beat", "block_hammer_beat", 1, 1)
+
     # yang_eval_nosie(cfg, model)
 
     import ipdb; ipdb.set_trace()
