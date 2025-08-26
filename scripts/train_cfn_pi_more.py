@@ -12,7 +12,7 @@ import time
 from lerobot.common.utils.logging_utils import AverageMeter
 from lerobot.configs import parser
 from lerobot.configs.train import TrainPipelineConfig
-from cfn.pi0_cfn.cfn_net_pi import CFNWrapper_pi
+from cfn.pi0_cfn.cfn_net_pi_more import CFNWrapper_pi
 
 from lerobot.common.datasets.lerobot_dataset import (
     # LeRobotDataset,

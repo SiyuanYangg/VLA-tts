@@ -12,7 +12,7 @@ import time
 from lerobot.common.utils.logging_utils import AverageMeter
 from lerobot.configs import parser
 from lerobot.configs.train import TrainPipelineConfig
-from cfn.pi0_cfn.cfn_net_pi import CFNWrapper_pi
+from cfn.sub_cfn.cfn_net_pi_sub import CFNWrapper_pi_sub
 
 from lerobot.common.datasets.lerobot_dataset import (
     # LeRobotDataset,
@@ -188,9 +188,11 @@ def train(cfg: TrainPipelineConfig):
     assert cfn_action_steps <= dataset[0]['action'].shape[0]
 
     t0 = time.time()
-    model = CFNWrapper_pi(
-        cfn_output_dim=getattr(cfg.policy, "cfn_output_dim", 20),
+    model = CFNWrapper_pi_sub(
+        cfn_output_dim=20,
+        cfn_action_steps=25,
         pretrained_checkpoint_path="/gemini/platform/public/embodiedAI/users/ysy/data/dataset/rt_pi0_ckpt/robotwin_new_transforms_all_tasks_50ep/25-08-06_00-31-57_pi0_gpu4_ck50_lr3e-5_bs12_s60K_seed42/checkpoints/030000/pretrained_model",
+        action_dim=dataset[0]['action'].shape[1]
     ).to(device)
     t1 = time.time()
     print(f"🧠 模型初始化时间: {t1 - t0:.2f}s")
@@ -233,6 +235,7 @@ def train(cfg: TrainPipelineConfig):
 
             forward_start = time.time()
             loss, model_output_train = model.compute_loss(batch)
+            # import ipdb; ipdb.set_trace()
 
             forward_end = time.time()
 
@@ -297,7 +300,7 @@ def train(cfg: TrainPipelineConfig):
         print(f"🕒 Epoch 总耗时: {time.time() - epoch_start:.2f}s")
 
         if (epoch + 1) % cfg.save_freq == 0:
-            torch.save(model.cfn.state_dict(), output_dir / f"model_epoch{epoch + 1}.pt")
+            torch.save(model.cfn_sub.state_dict(), output_dir / f"model_epoch{epoch + 1}.pt")
 
         writer.close()
 

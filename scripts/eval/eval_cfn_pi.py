@@ -208,21 +208,22 @@ def yang_eval(cfg, model, task, task2, replace_action, is_train_data):
             torch.set_printoptions(precision=6)
             print(torch.mean(output_norm))
 
-def yang_eval_nosie(cfg, model):
+def yang_eval_nosie(cfg, model, data_task):
 
     # task = "empty_cup_place"
     # task2 = "block_handover"
     # replace_action = 1
     # is_train_data = 1
 
-    ckpt_task = "empty_cup_place"
+    data_task = data_task
     
     # weight_path = f'/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/trans-single_task-0812/{ckpt_task}-0812/model_epoch1.pt'
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     cfg.validate()
 
-    cfg.dataset.root = "/gemini/platform/public/embodiedAI/huggingface_cache/rhodes_lerobot/RoboTwin/all_tasks_50ep"
+    cfg.dataset.root = f"/gemini/platform/public/embodiedAI/huggingface_cache/rhodes_lerobot/RoboTwin/eval_cfn/single_task/{data_task}_50epis"
+    # cfg.dataset.root = "/gemini/platform/public/embodiedAI/huggingface_cache/rhodes_lerobot/RoboTwin/all_tasks_50ep"
     dataset, _ = make_dataset(cfg)
 
     dataloader = DataLoader(
@@ -278,6 +279,7 @@ def yang_eval_nosie(cfg, model):
             # print(output_norm)
             torch.set_printoptions(precision=6)
             print(torch.mean(output_norm))
+            print(output_norm)
 
 
 
@@ -290,21 +292,23 @@ def test(cfg: TrainPipelineConfig):
 
     model = CFNWrapper_pi(
         cfn_output_dim=getattr(cfg.policy, "cfn_output_dim", 20),
-        pretrained_checkpoint_path="/gemini/platform/public/embodiedAI/users/ysy/data/dataset/rt_pi0_ckpt/25-07-21_12-18-18_pi0_gpu2_ck50_lr3e-5_bs12_s120K_seed42/checkpoints/060000/pretrained_model",
+        # pretrained_checkpoint_path="/gemini/platform/public/embodiedAI/users/ysy/data/dataset/rt_pi0_ckpt/25-07-21_12-18-18_pi0_gpu2_ck50_lr3e-5_bs12_s120K_seed42/checkpoints/060000/pretrained_model",
+        pretrained_checkpoint_path="/gemini/platform/public/embodiedAI/users/ysy/data/dataset/rt_pi0_ckpt/robotwin_new_transforms_all_tasks_50ep/25-08-06_00-31-57_pi0_gpu4_ck50_lr3e-5_bs12_s60K_seed42/checkpoints/030000/pretrained_model",
     ).to(device)
 
-    ckpt_task = "block_hammer_beat"
-    weight_path = f"/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/cfn_pi-single_task-0815/{ckpt_task}-0815/model_epoch1.pt"
-    # weight_path = f'/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/cfn_pi-delta_ac-0814/model_epoch1.pt'
+    ckpt_task = "block_handover"
+    
+    weight_path = f"/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/cfn_pi-single_task-new-0815/{ckpt_task}-0815/model_epoch1.pt"
+    # weight_path = f"/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/cfn_pi-single_task-0815/{ckpt_task}-0815/model_epoch1.pt"
     # 加载训练好的权重
     print(f"🔍 加载模型权重: {weight_path}")
     model.cfn.load_state_dict(torch.load(weight_path, map_location=device))
     model.eval()
 
     # def yang_eval(cfg, model, task, task2, replace_action, is_train_data):
-    yang_eval(cfg, model, "block_hammer_beat", "block_hammer_beat", 1, 1)
+    # yang_eval(cfg, model, "block_hammer_beat", "block_hammer_beat", 1, 1)
 
-    # yang_eval_nosie(cfg, model)
+    yang_eval_nosie(cfg, model, ckpt_task)
 
     import ipdb; ipdb.set_trace()
     print()

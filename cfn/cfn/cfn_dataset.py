@@ -179,7 +179,6 @@ class cfn_lerobot_dataset(LeRobotDataset):
         self.CoinFlipMaker = CoinFlipMaker()
 
 
-    # @profile
     def __getitem__(self, idx) -> dict:
 
         import time

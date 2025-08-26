@@ -241,7 +241,7 @@ class SequentialActionEmb(nn.Module):
         # 核心注意力机制
         self.perceiver_io = Perceiver(**perceiver_cfg.__dict__)
 
-    def forward(self, x, mask = None, return_cross_attn = False):
+    def forward(self, x, return_cross_attn = False):
         # 输入x.shape = [B, T, N, action_dim]
         # mask.shape = [B, T, N]
         # btn 分别是 batch, time_step, agent num

@@ -20,21 +20,19 @@ do
     DATASET_ROOT="$HF_LEROBOT_HOME/$DATASET_REPO_ID"
 
     # Output directory
-    # OUTPUT_DIR="${data_root}/train_cfn/cfn_pi-single_task-newckpt-0821/${task}-0821"
-    rm -r "${data_root}/train_cfn/temp"
-    OUTPUT_DIR="${data_root}/train_cfn/temp"
-    
+    OUTPUT_DIR="${data_root}/train_cfn/cfn_pi-single_task-newckpt-more-0821/${task}-0821"
+    # rm -r "${data_root}/train_cfn/temp"
 
     # Training Parameters
     BATCH_SIZE=16 
     # TOTAL_STEPS=280000
     SAVE_FREQ=1
     ACTION_CHUNK_SIZE=30
-    NUM_WORKERS=2
+    NUM_WORKERS=16
 
     cd ${code_root}/scripts
     # kernprof -l -v train2.py \
-    python train_cfn_pi.py \
+    python train_cfn_pi_more.py \
         --dataset.repo_id=$DATASET_REPO_ID \
         --dataset.root=$DATASET_ROOT \
         --dataset.image_transforms.enable=true \
