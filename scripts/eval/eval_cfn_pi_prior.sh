@@ -12,8 +12,8 @@ DATASET_ROOT="$HF_LEROBOT_HOME/$DATASET_REPO_ID"
 
 # Output directory
 # OUTPUT_DIR="/gemini/space/users/ysy/data/train_cfn/trans-0801"
-OUTPUT_DIR="${data_root}/train_cfn/temp"
 rm -r "${data_root}/train_cfn/temp"
+OUTPUT_DIR="${data_root}/train_cfn/temp"
 
 # Training Parameters
 BATCH_SIZE=64 # 64 # 32
@@ -22,9 +22,12 @@ SAVE_FREQ=1
 ACTION_CHUNK_SIZE=30
 NUM_WORKERS=2
 
+gpu_id=0
+export CUDA_VISIBLE_DEVICES=${gpu_id}
+
 cd ${code_root}/scripts/eval
 # kernprof -l -v train2.py \
-python eval_cfn_pi.py \
+python eval_cfn_pi_prior.py \
     --dataset.repo_id=$DATASET_REPO_ID \
     --dataset.root=$DATASET_ROOT \
     --dataset.image_transforms.enable=true \

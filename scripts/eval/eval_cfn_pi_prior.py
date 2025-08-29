@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from lerobot.configs import parser
 from lerobot.configs.train import TrainPipelineConfig
-from cfn.pi0_cfn.cfn_net_pi import CFNWrapper_pi
+from cfn.pi0_cfn.cfn_net_pi_prior import CFNWrapper_pi_prior
 from cfn.cfn_dataset import cfn_lerobot_dataset
 
 from lerobot.common.datasets.lerobot_dataset import (
@@ -279,9 +279,9 @@ def yang_eval_nosie(cfg, model, data_task):
             # print(output_norm)
             torch.set_printoptions(precision=6)
             print(torch.mean(output_norm))
-            print(output_norm)
-            print(output)
-            import ipdb; ipdb.set_trace()
+            # print(output_norm)
+            # print(output)
+            # import ipdb; ipdb.set_trace()
 
 
 
@@ -292,15 +292,15 @@ def test(cfg: TrainPipelineConfig):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-    model = CFNWrapper_pi(
+    model = CFNWrapper_pi_prior(
         cfn_output_dim=getattr(cfg.policy, "cfn_output_dim", 20),
         # pretrained_checkpoint_path="/gemini/platform/public/embodiedAI/users/ysy/data/dataset/rt_pi0_ckpt/25-07-21_12-18-18_pi0_gpu2_ck50_lr3e-5_bs12_s120K_seed42/checkpoints/060000/pretrained_model",
         pretrained_checkpoint_path="/gemini/platform/public/embodiedAI/users/ysy/data/dataset/rt_pi0_ckpt/robotwin_new_transforms_all_tasks_50ep/25-08-06_00-31-57_pi0_gpu4_ck50_lr3e-5_bs12_s60K_seed42/checkpoints/030000/pretrained_model",
     ).to(device)
 
-    ckpt_task = "block_hammer_beat"
+    ckpt_task = "block_handover"
     
-    weight_path = f"/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/cfn_pi-single_task-new-0815/{ckpt_task}-0815/model_epoch1.pt"
+    weight_path = f"/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/cfn_pi-single_task-newckpt-prior-notrans-0828/{ckpt_task}-0828/model_epoch6.pt"
     # weight_path = f"/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/cfn_pi-single_task-0815/{ckpt_task}-0815/model_epoch1.pt"
     # 加载训练好的权重
     print(f"🔍 加载模型权重: {weight_path}")
@@ -308,9 +308,9 @@ def test(cfg: TrainPipelineConfig):
     model.eval()
 
     # def yang_eval(cfg, model, task, task2, replace_action, is_train_data):
-    # yang_eval(cfg, model, "block_hammer_beat", "block_hammer_beat", 1, 1)
+    yang_eval(cfg, model, "block_handover", "block_hammer_beat", 0, 1)
 
-    yang_eval_nosie(cfg, model, ckpt_task)
+    # yang_eval_nosie(cfg, model, ckpt_task)
 
     import ipdb; ipdb.set_trace()
     print()

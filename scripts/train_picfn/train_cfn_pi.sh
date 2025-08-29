@@ -25,7 +25,7 @@ SAVE_FREQ=1
 ACTION_CHUNK_SIZE=30
 NUM_WORKERS=16
 
-cd ${code_root}/scripts
+cd ${code_root}/scripts/train_picfn
 # kernprof -l -v train2.py \
 python train_cfn_pi.py \
     --dataset.repo_id=$DATASET_REPO_ID \

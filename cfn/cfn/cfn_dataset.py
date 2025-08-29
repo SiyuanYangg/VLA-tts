@@ -227,7 +227,8 @@ class cfn_lerobot_dataset(LeRobotDataset):
         task_idx = item["task_index"].item()
         item["task"] = self.meta.tasks[task_idx]
 
-        item["CoinFlip_target"] = self.CoinFlipMaker(self.episodes[0] + idx)
+        # item["CoinFlip_target"] = self.CoinFlipMaker(self.episodes[0] + idx)
+        item["CoinFlip_target"] = self.CoinFlipMaker(idx)
 
         return item
 

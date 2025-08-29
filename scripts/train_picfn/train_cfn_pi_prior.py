@@ -12,7 +12,7 @@ import time
 from lerobot.common.utils.logging_utils import AverageMeter
 from lerobot.configs import parser
 from lerobot.configs.train import TrainPipelineConfig
-from cfn.pi0_cfn.cfn_net_pi import CFNWrapper_pi
+from cfn.pi0_cfn.cfn_net_pi_prior import CFNWrapper_pi_prior
 
 from lerobot.common.datasets.lerobot_dataset import (
     # LeRobotDataset,
@@ -78,8 +78,14 @@ def make_dataset(cfg: TrainPipelineConfig) -> cfn_lerobot_dataset | MultiLeRobot
         # image_transforms = ImageTransforms.create_piohfive_sequential_transform(
         #     (height, width)
         # ) if cfg.dataset.image_transforms.enable else None
+
+        # 做图像增强: 
         image_transforms = ImageTransforms.create_jax_pi0_main_camera_transform(img_size=(height, width)) if cfg.dataset.image_transforms.enable else None
         wrist_transforms = ImageTransforms.create_jax_pi0_wrist_camera_transform(img_size=(height, width)) if cfg.dataset.wrist_transforms.enable else None
+
+        # 不做图像增强:
+        # image_transforms = None
+        # wrist_transforms = None
 
         delta_timestamps = resolve_delta_timestamps(cfg.policy, ds_meta)
         # breakpoint()
@@ -125,7 +131,7 @@ def make_dataset(cfg: TrainPipelineConfig) -> cfn_lerobot_dataset | MultiLeRobot
     return dataset, val_dataset
 
 def evaluate(model, val_dataset, device, cfn_action_steps):
-    model.eval()
+    # model.eval()
     val_loader = DataLoader(
         val_dataset,
         batch_size=64,
@@ -138,13 +144,6 @@ def evaluate(model, val_dataset, device, cfn_action_steps):
     num_batches = 0
     with torch.no_grad():
         for batch in val_loader:
-            # state = batch['observation.state'].to(device)
-            # action = batch["action"].to(device)
-            # instructions = batch["task"]
-            # action = action[:, :cfn_action_steps, :]
-            # batch_size = action.shape[0]
-            # action = action.reshape(batch_size, -1)
-            # target = batch["CoinFlip_target"].float().to(device)
 
             loss, model_output_val = model.compute_loss(batch)
             total_val_loss += loss.item()
@@ -173,6 +172,9 @@ def train(cfg: TrainPipelineConfig):
     t1 = time.time()
     print(f"📦 数据集加载时间: {t1 - t0:.2f}s")
 
+    # torch.set_printoptions(sci_mode=False)
+    # import ipdb; ipdb.set_trace()
+
     dataloader = DataLoader(
         dataset,
         batch_size=cfg.batch_size,
@@ -188,14 +190,14 @@ def train(cfg: TrainPipelineConfig):
     assert cfn_action_steps <= dataset[0]['action'].shape[0]
 
     t0 = time.time()
-    model = CFNWrapper_pi(
+    model = CFNWrapper_pi_prior(
         cfn_output_dim=getattr(cfg.policy, "cfn_output_dim", 20),
         pretrained_checkpoint_path="/gemini/platform/public/embodiedAI/users/ysy/data/dataset/rt_pi0_ckpt/robotwin_new_transforms_all_tasks_50ep/25-08-06_00-31-57_pi0_gpu4_ck50_lr3e-5_bs12_s60K_seed42/checkpoints/030000/pretrained_model",
     ).to(device)
     t1 = time.time()
     print(f"🧠 模型初始化时间: {t1 - t0:.2f}s")
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=cfg.optimizer.lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     loss_meter = AverageMeter("loss", ":.4f")
 
     output_dir = Path(cfg.output_dir)
@@ -205,15 +207,16 @@ def train(cfg: TrainPipelineConfig):
 
     model.train()
     num_batches_per_epoch = len(dataset) // cfg.batch_size
-    total_epochs = 3  # cfg.steps // num_batches_per_epoch + 1
+    total_epochs = 10  # cfg.steps // num_batches_per_epoch + 1
 
-    grad_accum_steps = 1  # 每多少个 batch 累积一次梯度
-    log_interval = 1  # 每多少个batch做一次log
+    grad_accum_steps = 2  # 每多少个 batch 累积一次梯度
+    log_interval = 2  # 每多少个batch做一次log
 
     for epoch in range(total_epochs):
         print(f"\n📘 Epoch {epoch + 1} 开始")
         epoch_start = time.time()
         model.train()
+        model.policy.eval() ######################## note this
         optimizer.zero_grad()
         total_loss = 0.0
 
@@ -248,7 +251,14 @@ def train(cfg: TrainPipelineConfig):
 
             # 计算 model_output_train 的 norm，并记录
             train_norm = model_output_train.norm(p=2, dim=1).mean()  # 每个batch的norm取均值
+            prior_o_norm = model.cfn.prior_outputs.norm(p=2, dim=1).mean()  # 每个batch的norm取均值
+            prior_norm = model.cfn.prior.norm(p=2, dim=1).mean()  # 每个batch的norm取均值
             writer.add_scalar("Norm/train", train_norm.item(), epoch * num_batches_per_epoch + batch_counter)
+            writer.add_scalar("Norm/prior_o", prior_o_norm.item(), epoch * num_batches_per_epoch + batch_counter)
+            writer.add_scalar("Norm/prior", prior_norm.item(), epoch * num_batches_per_epoch + batch_counter)
+            writer.add_scalar("cfn/prior_mean", model.cfn.prior_mean.mean().item(), epoch * num_batches_per_epoch + batch_counter)
+            writer.add_scalar("cfn/prior_var", model.cfn.prior_var.mean().item(), epoch * num_batches_per_epoch + batch_counter)
+
 
             accum_batch_time += batch_end - batch_start
             accum_data_time += data_end - data_start
@@ -263,6 +273,7 @@ def train(cfg: TrainPipelineConfig):
                 step = epoch * num_batches_per_epoch + batch_counter
                 avg_loss = total_loss / batch_counter
                 writer.add_scalar("Loss/train", avg_loss, step)
+                
 
                 if batch_counter % (log_interval * 100) == 0:  # 每5次log再验证一次
                     avg_val_loss, avg_val_norm = evaluate(model, val_dataset, device, cfn_action_steps)
