@@ -26,11 +26,10 @@ do
     DATASET_ROOT="$HF_LEROBOT_HOME/$DATASET_REPO_ID"
 
     # Output directory
-    OUTPUT_DIR="${data_root}/train_cfn/cfn_pi-single_task-newckpt-prior-0828-good/${task}-0828"
+    OUTPUT_DIR="${data_root}/train_cfn/cfn_pi-single_task-newckpt-prior-0901/${task}-0901"
     # rm -r "${data_root}/train_cfn/temp"
     # OUTPUT_DIR="${data_root}/train_cfn/temp"
-    
-
+        
     # Training Parameters
     BATCH_SIZE=16 
     # TOTAL_STEPS=280000

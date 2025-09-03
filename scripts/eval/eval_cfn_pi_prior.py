@@ -298,9 +298,9 @@ def test(cfg: TrainPipelineConfig):
         pretrained_checkpoint_path="/gemini/platform/public/embodiedAI/users/ysy/data/dataset/rt_pi0_ckpt/robotwin_new_transforms_all_tasks_50ep/25-08-06_00-31-57_pi0_gpu4_ck50_lr3e-5_bs12_s60K_seed42/checkpoints/030000/pretrained_model",
     ).to(device)
 
-    ckpt_task = "block_handover"
+    ckpt_task = "block_hammer_beat"
     
-    weight_path = f"/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/cfn_pi-single_task-newckpt-prior-notrans-0828/{ckpt_task}-0828/model_epoch6.pt"
+    weight_path = f"/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/cfn_pi-single_task-newckpt-prior-notrans-0828/{ckpt_task}-0828/model_epoch8.pt"
     # weight_path = f"/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/cfn_pi-single_task-0815/{ckpt_task}-0815/model_epoch1.pt"
     # 加载训练好的权重
     print(f"🔍 加载模型权重: {weight_path}")
@@ -308,9 +308,9 @@ def test(cfg: TrainPipelineConfig):
     model.eval()
 
     # def yang_eval(cfg, model, task, task2, replace_action, is_train_data):
-    yang_eval(cfg, model, "block_handover", "block_hammer_beat", 0, 1)
+    # yang_eval(cfg, model, "block_handover", "block_hammer_beat", 0, 0)
 
-    # yang_eval_nosie(cfg, model, ckpt_task)
+    yang_eval_nosie(cfg, model, ckpt_task)
 
     import ipdb; ipdb.set_trace()
     print()

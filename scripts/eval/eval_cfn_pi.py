@@ -279,9 +279,9 @@ def yang_eval_nosie(cfg, model, data_task):
             # print(output_norm)
             torch.set_printoptions(precision=6)
             print(torch.mean(output_norm))
-            print(output_norm)
-            print(output)
-            import ipdb; ipdb.set_trace()
+            # print(output_norm)
+            # print(output)
+            # import ipdb; ipdb.set_trace()
 
 
 
