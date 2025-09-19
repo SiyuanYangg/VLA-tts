@@ -13,7 +13,7 @@ import time
 from lerobot.common.utils.logging_utils import AverageMeter
 from lerobot.configs import parser
 from lerobot.configs.train import TrainPipelineConfig
-from cfn.pi0_cfn.cfn_net_pi_prior_big import CFNWrapper_pi_prior_big
+from cfn.pi0_dis_feature.dis_net_pi_prior_big import DISWrapper_pi_prior_big
 
 from lerobot.common.datasets.lerobot_dataset import (
     # LeRobotDataset,
@@ -175,9 +175,12 @@ def plot_n(vec1, vec2, save_path='vector_comparison.png'):
     if len(vec1) != len(vec2):
         raise ValueError("两个向量长度必须相同")
 
-    # 归一化到 [0, 1]
-    vec1_norm = (vec1 - vec1.min()) / (vec1.max() - vec1.min())
-    vec2_norm = (vec2 - vec2.min()) / (vec2.max() - vec2.min())
+    # # 归一化到 [0, 1]
+    # vec1_norm = (vec1 - vec1.min()) / (vec1.max() - vec1.min())
+    # vec2_norm = (vec2 - vec2.min()) / (vec2.max() - vec2.min())
+    # 不归一化
+    vec1_norm = vec1
+    vec2_norm = vec2
 
     # 创建 x 轴
     x = torch.arange(len(vec1))
@@ -226,18 +229,18 @@ def train(cfg: TrainPipelineConfig):
     assert cfn_action_steps <= dataset[0]['action'].shape[0]
 
     t0 = time.time()
-    model = CFNWrapper_pi_prior_big(
-        cfn_output_dim=20,
+    model = DISWrapper_pi_prior_big(
         pretrained_checkpoint_path="/gemini/platform/public/embodiedAI/users/ysy/data/dataset/rt_pi0_ckpt/robotwin_new_transforms_all_tasks_50ep/25-08-06_00-31-57_pi0_gpu4_ck50_lr3e-5_bs12_s60K_seed42/checkpoints/030000/pretrained_model",
     ).to(device)
     t1 = time.time()
     print(f"🧠 模型初始化时间: {t1 - t0:.2f}s")
 
-    # weight_path = f'/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/aaa-0917/cfn_pi-single_task-newckpt-prior-big-featurex10-step9/block_handover/model_epoch16.pt'
-    weight_path = f'/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/aaa-0913/cfn_pi-single_task-newckpt-prior-big-feature-step9/block_handover/model_epoch16.pt'
+    # featurex10
+    # weight_path = f'/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/aaa-0917/dis_pi-single_task-newckpt-prior-big-featurex10/block_handover/model_epoch50.pt'
+    weight_path = f'/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/aaa-0917/dis_pi-single_task-newckpt-prior-big-feature-step9/block_handover/model_epoch48.pt'
     # 加载训练好的权重
     print(f"🔍 加载模型权重: {weight_path}")
-    model.cfn.load_state_dict(torch.load(weight_path))
+    model.dis.load_state_dict(torch.load(weight_path))
     model.eval()
 
     num_batches_per_epoch = len(dataset) // cfg.batch_size
@@ -315,7 +318,8 @@ def train(cfg: TrainPipelineConfig):
             # import ipdb; ipdb.set_trace()
 
             dis = []
-            cfn_norm = []
+            dis_pred_re = []
+            logvar_pred_re = []
 
             for i in tqdm(range(bs)):
                 noise_batch = {}
@@ -352,15 +356,17 @@ def train(cfg: TrainPipelineConfig):
                             features_good[f"denoise_step{step_list[i]}"] = []
                         norm42 = torch.norm(normalized_actions[i] - gt_action, dim=(1, 2), p=2)
                         dis.append(norm42)
-                        cfn = torch.norm(model.cfn(features[i, ...].to(torch.float32)), dim=1)
-                        cfn_norm.append(cfn)
+                        dis_pred, logvar_pred = model.dis(features[i, ...].to(torch.float32))
+                        dis_pred_re.append(dis_pred)
+                        logvar_pred_re.append(logvar_pred)
                         # import ipdb;ipdb.set_trace()
                         min_index = torch.argmin(norm42)
                         features_good[f"denoise_step{step_list[i]}"].append(features[i, min_index])
                         # print(f"step is {step_list[i]}, norm_mean is {norm42.mean()}")
 
             dis = torch.stack(dis, dim=0)
-            cfn_norm = torch.stack(cfn_norm, dim=0)
+            dis_pred_re = torch.stack(dis_pred_re, dim=0)
+            logvar_pred_re = torch.stack(logvar_pred_re, dim=0)
             unique_indices, counts = torch.unique(dis.min(dim=1)[1], return_counts=True)
             sorted_counts, sorted_idx = torch.sort(counts, descending=True)
             sorted_indices = unique_indices[sorted_idx]

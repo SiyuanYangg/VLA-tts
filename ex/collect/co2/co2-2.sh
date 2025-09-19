@@ -1,10 +1,10 @@
-#!/bin/zsh
+
 
 export data_root="/gemini/platform/public/embodiedAI/users/ysy/data"
 export code_root="/gemini/space/users/ysy/project/VLA-tts"
 export TOKENIZERS_PARALLELISM="false"
 
-gpu_id=0
+gpu_id=1
 export CUDA_VISIBLE_DEVICES=${gpu_id}
 
 # all
@@ -20,19 +20,11 @@ export CUDA_VISIBLE_DEVICES=${gpu_id}
     # shoe_place            tool_adjust \
     # blocks_stack_easy    blocks_stack_hard \
     # mug_hanging_easy    mug_hanging_hard
-# 0915
-    # block_hammer_beat        \
-    # bottle_adjust      dual_bottles_pick_hard \
-    # dual_shoes_place        \
-    # pick_apple_messy   put_apple_cabinet  
-    # shoe_place            tool_adjust \
+# done
+    # block_handover  container_place diverse_bottles_pick  dual_bottles_pick_easy 
 
 for task in \
-    block_hammer_beat        \
-    bottle_adjust      dual_bottles_pick_hard \
-    dual_shoes_place        \
-    pick_apple_messy   put_apple_cabinet  \
-    shoe_place            tool_adjust 
+     diverse_bottles_pick  dual_bottles_pick_easy         
 do
     echo now task = ${task} !!!
 
@@ -40,20 +32,19 @@ do
     DATASET_ROOT="$HF_LEROBOT_HOME/$DATASET_REPO_ID"
 
     # Output directory
-    OUTPUT_DIR="${data_root}/train_cfn/aaa-0916/cfn_pi-single_task-newckpt-prior-big-feature-step9-debug/${task}"
+    OUTPUT_DIR="${data_root}/dataset/feature_distance/${task}"
     # rm -r "${data_root}/train_cfn/temp"
     # OUTPUT_DIR="${data_root}/train_cfn/temp"
-
+        
     # Training Parameters
-    BATCH_SIZE=10
+    BATCH_SIZE=128
     # TOTAL_STEPS=280000
     SAVE_FREQ=4
     ACTION_CHUNK_SIZE=30
     NUM_WORKERS=16
 
-    cd ${code_root}/scripts/train_picfn/train_pifeature/debug0916
-    # kernprof -l -v  \
-    python train_cfn_pi_prior_big_feature.py \
+    cd ${code_root}/ex/collect/co2
+    python co2.py \
         --dataset.repo_id=$DATASET_REPO_ID \
         --dataset.root=$DATASET_ROOT \
         --dataset.image_transforms.enable=true \

@@ -27,9 +27,8 @@ from lerobot.common.datasets.transforms import ImageTransforms
 from lerobot.common.datasets.factory import resolve_delta_timestamps
 import logging
 from pprint import pformat
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 import json
-import matplotlib.pyplot as plt
 
 def make_dataset(cfg: TrainPipelineConfig) -> cfn_lerobot_dataset | MultiLeRobotDataset:
     """Handles the logic of setting up delta timestamps and image transforms before creating a dataset.
@@ -160,40 +159,6 @@ def evaluate(model, val_dataset, device, cfn_action_steps):
     avg_val_norm = total_val_norm / num_batches  # 平均所有batch的norm
     return avg_val_loss, avg_val_norm
 
-def plot_n(vec1, vec2, save_path='vector_comparison.png'):
-    """
-    将两个向量归一化后绘制在同一张图上并保存。
-    
-    参数：
-    vec1, vec2 : torch.Tensor
-        要比较的两个向量，长度必须相同。
-    save_path : str
-        保存图片的路径，默认 'vector_comparison.png'。
-    """
-    vec1 = vec1.cpu()
-    vec2 = vec2.cpu()
-    if len(vec1) != len(vec2):
-        raise ValueError("两个向量长度必须相同")
-
-    # 归一化到 [0, 1]
-    vec1_norm = (vec1 - vec1.min()) / (vec1.max() - vec1.min())
-    vec2_norm = (vec2 - vec2.min()) / (vec2.max() - vec2.min())
-
-    # 创建 x 轴
-    x = torch.arange(len(vec1))
-
-    # 绘图
-    plt.figure(figsize=(10, 6))
-    plt.plot(x, vec1_norm, label='Vector 1', marker='o')
-    plt.plot(x, vec2_norm, label='Vector 2', marker='x')
-    plt.title('Comparison of Two Vectors')
-    plt.xlabel('Index')
-    plt.ylabel('Normalized Value')
-    plt.legend()
-    plt.grid(True)
-
-    # 保存图片
-    plt.savefig(save_path, dpi=300)
 
 @parser.wrap()
 def train(cfg: TrainPipelineConfig):
@@ -214,7 +179,7 @@ def train(cfg: TrainPipelineConfig):
     dataloader = DataLoader(
         dataset,
         batch_size=cfg.batch_size,
-        shuffle=True,
+        shuffle=False,
         num_workers=cfg.num_workers,
         pin_memory=device.type != "cpu",
         drop_last=False,
@@ -233,24 +198,17 @@ def train(cfg: TrainPipelineConfig):
     t1 = time.time()
     print(f"🧠 模型初始化时间: {t1 - t0:.2f}s")
 
-    # weight_path = f'/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/aaa-0917/cfn_pi-single_task-newckpt-prior-big-featurex10-step9/block_handover/model_epoch16.pt'
-    weight_path = f'/gemini/platform/public/embodiedAI/users/ysy/data/train_cfn/aaa-0913/cfn_pi-single_task-newckpt-prior-big-feature-step9/block_handover/model_epoch16.pt'
-    # 加载训练好的权重
-    print(f"🔍 加载模型权重: {weight_path}")
-    model.cfn.load_state_dict(torch.load(weight_path))
-    model.eval()
-
     num_batches_per_epoch = len(dataset) // cfg.batch_size
     total_epochs = 16  # cfg.steps // num_batches_per_epoch + 1
 
-    # optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-    # scheduler = torch.optim.lr_scheduler.OneCycleLR(
-    #     optimizer,
-    #     max_lr=1e-3,
-    #     steps_per_epoch=len(dataloader),
-    #     epochs=total_epochs,
-    #     anneal_strategy='cos',  # 余弦退火
-    # )   
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer,
+        max_lr=1e-3,
+        steps_per_epoch=len(dataloader),
+        epochs=total_epochs,
+        anneal_strategy='cos',  # 余弦退火
+    )   
 
     output_dir = Path(cfg.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -274,11 +232,17 @@ def train(cfg: TrainPipelineConfig):
         size=actions_shape,
         dtype=dtype,
     ).to(device)
+    #######################################################################################
+    # only get one noise
+    # noise42 = noise42[[14]]
+    # noise_num = 1
+    #######################################################################################
     print(f"noise is\n{noise42}")
+
     # seed = 2345
     # torch.manual_seed(seed)
     # print(f"noise seed is {seed} !!!")
-    # # noise = self.policy.model.sample_noise(actions_shape, device, dtype)
+    # noise = self.policy.model.sample_noise(actions_shape, device, dtype)
     # noise_num = 50
     # actions_shape = (noise_num, model.policy.model.config.n_action_steps, model.policy.model.config.max_action_dim)
     # noise2345 = torch.normal(
@@ -300,8 +264,10 @@ def train(cfg: TrainPipelineConfig):
         print(f"\n📘 Epoch {epoch + 1} 开始")
         model.train()
         model.policy.eval() ######################## note this
+        optimizer.zero_grad()
 
-        features_good = {}
+        features_all = {}
+        distance_all = {}
         for batch in tqdm(dataloader, desc=f"Epoch {epoch + 1}"):
             # 转到cuda
             batch['observation.state'] = batch['observation.state'].to(device)
@@ -313,9 +279,6 @@ def train(cfg: TrainPipelineConfig):
             # noise_num = 5
             bs = batch['observation.state'].shape[0]
             # import ipdb; ipdb.set_trace()
-
-            dis = []
-            cfn_norm = []
 
             for i in tqdm(range(bs)):
                 noise_batch = {}
@@ -348,39 +311,33 @@ def train(cfg: TrainPipelineConfig):
                 # 选出最优的
                 with torch.no_grad():
                     for i in range(len(step_list)):
-                        if f"denoise_step{step_list[i]}" not in features_good.keys():
-                            features_good[f"denoise_step{step_list[i]}"] = []
-                        norm42 = torch.norm(normalized_actions[i] - gt_action, dim=(1, 2), p=2)
-                        dis.append(norm42)
-                        cfn = torch.norm(model.cfn(features[i, ...].to(torch.float32)), dim=1)
-                        cfn_norm.append(cfn)
+                        if f"denoise_step{step_list[i]}" not in features_all.keys():
+                            features_all[f"denoise_step{step_list[i]}"] = []
+                        if f"denoise_step{step_list[i]}" not in distance_all.keys():
+                            distance_all[f"denoise_step{step_list[i]}"] = []
+                        distance = torch.norm(normalized_actions[i] - gt_action, dim=(1, 2), p=2)
+                        distance_all[f"denoise_step{step_list[i]}"].append(distance)
+                        # min_index = torch.argmin(norm42)
                         # import ipdb;ipdb.set_trace()
-                        min_index = torch.argmin(norm42)
-                        features_good[f"denoise_step{step_list[i]}"].append(features[i, min_index])
+                        features_all[f"denoise_step{step_list[i]}"].append(features[i])
+
                         # print(f"step is {step_list[i]}, norm_mean is {norm42.mean()}")
 
-            dis = torch.stack(dis, dim=0)
-            cfn_norm = torch.stack(cfn_norm, dim=0)
-            unique_indices, counts = torch.unique(dis.min(dim=1)[1], return_counts=True)
-            sorted_counts, sorted_idx = torch.sort(counts, descending=True)
-            sorted_indices = unique_indices[sorted_idx]
-            print(f"di_min_indices: {sorted_indices}")
-            print(f"counts: {sorted_counts}")
-            import ipdb;ipdb.set_trace()
-            print()
+                # import ipdb;ipdb.set_trace()
             # aa +=1
             # if aa >2:
             #     break
         
         for i in range(len(step_list)):
-            features_good[f"denoise_step{step_list[i]}"] = torch.stack(features_good[f"denoise_step{step_list[i]}"])
+            features_all[f"denoise_step{step_list[i]}"] = torch.stack(features_all[f"denoise_step{step_list[i]}"])
+            distance_all[f"denoise_step{step_list[i]}"] = torch.stack(distance_all[f"denoise_step{step_list[i]}"])
+        
         save_path = output_dir
-        # torch.save(features_good, save_path / "feature.pt")
-        # print(f"features have been saved at {save_path / 'feature.pt'}")
+        torch.save(features_all, save_path / "feature_all.pt")
+        torch.save(distance_all, save_path / "distance_all.pt")
+        print(f"features and distance have been saved at {save_path}")
         print()
 
 
-    print(f"✅ 所有训练完成，总耗时: {time.time() - overall_start:.2f}s")
-    
 if __name__ == "__main__":
     train()

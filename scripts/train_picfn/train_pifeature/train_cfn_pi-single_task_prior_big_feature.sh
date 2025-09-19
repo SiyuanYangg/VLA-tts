@@ -28,11 +28,10 @@ export CUDA_VISIBLE_DEVICES=${gpu_id}
     # shoe_place            tool_adjust \
 
 for task in \
-    block_hammer_beat        \
-    bottle_adjust      dual_bottles_pick_hard \
-    dual_shoes_place        \
-    pick_apple_messy   put_apple_cabinet  \
-    shoe_place            tool_adjust 
+    empty_cup_place \
+    blocks_stack_easy     blocks_stack_hard \
+    mug_hanging_easy      mug_hanging_hard
+    
 do
     echo now task = ${task} !!!
 

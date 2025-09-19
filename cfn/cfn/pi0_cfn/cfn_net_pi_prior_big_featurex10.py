@@ -125,6 +125,7 @@ class cfn_net(nn.Module):
 
     def forward(self, features):
         # Record prior output (called during forward pass to update the buffer)
+        features = features * 10
         with torch.no_grad():
             self.prior_outputs = self.prior_cfn(features)
             prior = (self.prior_outputs - self.prior_mean) / torch.sqrt(self.prior_var + 1e-6)

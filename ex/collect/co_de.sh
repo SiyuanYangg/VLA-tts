@@ -4,7 +4,7 @@ export data_root="/gemini/platform/public/embodiedAI/users/ysy/data"
 export code_root="/gemini/space/users/ysy/project/VLA-tts"
 export TOKENIZERS_PARALLELISM="false"
 
-gpu_id=1
+gpu_id=0
 export CUDA_VISIBLE_DEVICES=${gpu_id}
 
 # all
@@ -14,7 +14,7 @@ export CUDA_VISIBLE_DEVICES=${gpu_id}
     # pick_apple_messy   put_apple_cabinet  shoe_place            tool_adjust
 
 for task in \
-    diverse_bottles_pick # bottle_adjust # container_place # block_handover 
+    block_handover # bottle_adjust # container_place # block_handover 
 
 do
     echo now task = ${task} !!!

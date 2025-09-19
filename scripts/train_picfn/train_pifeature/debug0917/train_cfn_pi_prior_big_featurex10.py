@@ -12,9 +12,15 @@ import time
 from lerobot.common.utils.logging_utils import AverageMeter
 from lerobot.configs import parser
 from lerobot.configs.train import TrainPipelineConfig
-from cfn.pi0_cfn.cfn_net_pi_prior_big import CFNWrapper_pi_prior_big
+from cfn.pi0_cfn.cfn_net_pi_prior_big_featurex10 import CFNWrapper_pi_prior_big
 
-from cfn.cfn_dataset_feature.feature_dataset import cfn_pifeature_dataset_debug0916
+from lerobot.common.datasets.lerobot_dataset import (
+    # LeRobotDataset,
+    LeRobotDatasetMetadata,
+    MultiLeRobotDataset,
+)
+
+from cfn.cfn_dataset_feature.feature_dataset import cfn_pifeature_dataset
 
 from lerobot.common.datasets.transforms import ImageTransforms
 from lerobot.common.datasets.factory import resolve_delta_timestamps
@@ -66,7 +72,7 @@ def train(cfg: TrainPipelineConfig):
     task_name = output_dir.name
 
     t0 = time.time()
-    dataset = cfn_pifeature_dataset_debug0916(
+    dataset = cfn_pifeature_dataset(
         feature_dir=f"/gemini/platform/public/embodiedAI/users/ysy/data/dataset/feature_rt/{task_name}/feature.pt", # 选择的noise 的feature
         # feature_dir=f"/gemini/platform/public/embodiedAI/users/ysy/data/dataset/feature_rt_good_noise/{task_name}/feature.pt", # seed42的第一个noise
         # feature_dir=f"/gemini/platform/public/embodiedAI/users/ysy/data/dataset/feature_rt_index14_noise/{task_name}/feature.pt",

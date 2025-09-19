@@ -12,9 +12,10 @@ import time
 from lerobot.common.utils.logging_utils import AverageMeter
 from lerobot.configs import parser
 from lerobot.configs.train import TrainPipelineConfig
-from cfn.pi0_cfn.cfn_net_pi_prior_big import CFNWrapper_pi_prior_big
+from cfn.pi0_dis_feature.dis_net_pi_prior_big import DISWrapper_pi_prior_big
 
-from cfn.cfn_dataset_feature.feature_dataset import cfn_pifeature_dataset_debug0916
+
+from cfn.dis_dataset_feature.dis_feature_dataset import dis_pifeature_dataset
 
 from lerobot.common.datasets.transforms import ImageTransforms
 from lerobot.common.datasets.factory import resolve_delta_timestamps
@@ -23,33 +24,33 @@ from pprint import pformat
 from torch.utils.tensorboard import SummaryWriter
 import json
 
-def evaluate(model, val_dataset, device, cfn_action_steps):
-    # model.eval()
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=64,
-        shuffle=False,
-        num_workers=8,
-        pin_memory=device.type != "cpu"
-    )
-    total_val_loss = 0.0
-    total_val_norm = 0.0
-    num_batches = 0
-    with torch.no_grad():
-        for batch in val_loader:
+# def evaluate(model, val_dataset, device, cfn_action_steps):
+#     # model.eval()
+#     val_loader = DataLoader(
+#         val_dataset,
+#         batch_size=64,
+#         shuffle=False,
+#         num_workers=8,
+#         pin_memory=device.type != "cpu"
+#     )
+#     total_val_loss = 0.0
+#     total_val_norm = 0.0
+#     num_batches = 0
+#     with torch.no_grad():
+#         for batch in val_loader:
 
-            loss, model_output_val = model.compute_loss(batch)
-            total_val_loss += loss.item()
+#             loss, model_output_val = model.compute_loss(batch)
+#             total_val_loss += loss.item()
             
-            # 计算 model_output_val 的 norm，并累计
-            val_norm = model_output_val.norm(p=2, dim=1).mean()  # 每个batch的norm取均值
-            total_val_norm += val_norm.item()
+#             # 计算 model_output_val 的 norm，并累计
+#             val_norm = model_output_val.norm(p=2, dim=1).mean()  # 每个batch的norm取均值
+#             total_val_norm += val_norm.item()
 
-            num_batches += 1
+#             num_batches += 1
 
-    avg_val_loss = total_val_loss / len(val_loader)
-    avg_val_norm = total_val_norm / num_batches  # 平均所有batch的norm
-    return avg_val_loss, avg_val_norm
+#     avg_val_loss = total_val_loss / len(val_loader)
+#     avg_val_norm = total_val_norm / num_batches  # 平均所有batch的norm
+#     return avg_val_loss, avg_val_norm
 
 
 @parser.wrap()
@@ -66,8 +67,8 @@ def train(cfg: TrainPipelineConfig):
     task_name = output_dir.name
 
     t0 = time.time()
-    dataset = cfn_pifeature_dataset_debug0916(
-        feature_dir=f"/gemini/platform/public/embodiedAI/users/ysy/data/dataset/feature_rt/{task_name}/feature.pt", # 选择的noise 的feature
+    dataset = dis_pifeature_dataset(
+        all_dir=f"/gemini/platform/public/embodiedAI/users/ysy/data/dataset/feature_distance/{task_name}", # 选择的noise 的feature
         # feature_dir=f"/gemini/platform/public/embodiedAI/users/ysy/data/dataset/feature_rt_good_noise/{task_name}/feature.pt", # seed42的第一个noise
         # feature_dir=f"/gemini/platform/public/embodiedAI/users/ysy/data/dataset/feature_rt_index14_noise/{task_name}/feature.pt",
         step_list=[9]
@@ -88,20 +89,19 @@ def train(cfg: TrainPipelineConfig):
     )
 
     t0 = time.time()
-    model = CFNWrapper_pi_prior_big(
-        cfn_output_dim=20,
+    model = DISWrapper_pi_prior_big(
         pretrained_checkpoint_path="/gemini/platform/public/embodiedAI/users/ysy/data/dataset/rt_pi0_ckpt/robotwin_new_transforms_all_tasks_50ep/25-08-06_00-31-57_pi0_gpu4_ck50_lr3e-5_bs12_s60K_seed42/checkpoints/030000/pretrained_model",
     ).to(device)
     t1 = time.time()
     print(f"🧠 模型初始化时间: {t1 - t0:.2f}s")
 
     num_batches_per_epoch = len(dataset) // cfg.batch_size
-    total_epochs = 16  # cfg.steps // num_batches_per_epoch + 1
+    total_epochs = 50  # cfg.steps // num_batches_per_epoch + 1
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer,
-        max_lr=1e-3,
+        max_lr=1e-4,
         steps_per_epoch=len(dataloader),
         epochs=total_epochs,
         anneal_strategy='cos',  # 余弦退火
@@ -139,7 +139,7 @@ def train(cfg: TrainPipelineConfig):
             data_end = time.time()
 
             forward_start = time.time()
-            loss, model_output_train = model.compute_loss_feature(batch)
+            loss, dis_pred, var = model.compute_loss_feature(batch)
 
             forward_end = time.time()
 
@@ -154,14 +154,10 @@ def train(cfg: TrainPipelineConfig):
             batch_counter += 1
 
             # 计算 model_output_train 的 norm，并记录
-            train_norm = model_output_train.norm(p=2, dim=1).mean()  # 每个batch的norm取均值
-            prior_o_norm = model.cfn.prior_outputs.norm(p=2, dim=1).mean()  # 每个batch的norm取均值
-            prior_norm = model.cfn.prior.norm(p=2, dim=1).mean()  # 每个batch的norm取均值
-            writer.add_scalar("Norm/train", train_norm.item(), epoch * num_batches_per_epoch + batch_counter)
-            writer.add_scalar("Norm/prior_o", prior_o_norm.item(), epoch * num_batches_per_epoch + batch_counter)
-            writer.add_scalar("Norm/prior", prior_norm.item(), epoch * num_batches_per_epoch + batch_counter)
-            writer.add_scalar("cfn/prior_mean", model.cfn.prior_mean.mean().item(), epoch * num_batches_per_epoch + batch_counter)
-            writer.add_scalar("cfn/prior_var", model.cfn.prior_var.mean().item(), epoch * num_batches_per_epoch + batch_counter)
+            writer.add_scalar("Train/dis_pred", dis_pred.mean().item(), epoch * num_batches_per_epoch + batch_counter)
+            writer.add_scalar("Train/var", var.mean().item(), epoch * num_batches_per_epoch + batch_counter)
+            writer.add_scalar("Prior/prior_mean", model.dis.prior_mean.item(), epoch * num_batches_per_epoch + batch_counter)
+            writer.add_scalar("Prior/prior_var", model.dis.prior_logvar.item(), epoch * num_batches_per_epoch + batch_counter)
 
             accum_batch_time += batch_end - batch_start
             accum_data_time += data_end - data_start
@@ -181,12 +177,8 @@ def train(cfg: TrainPipelineConfig):
                 writer.add_scalar("Train/loss", avg_loss, step)
                 current_lr = optimizer.param_groups[0]['lr']
                 writer.add_scalar("Train/lr", current_lr, step)
+                writer.add_scalar("Train/epoch", epoch+1, step)
                 
-                # if batch_counter % (log_interval * 100) == 0:  # 每5次log再验证一次
-                #     avg_val_loss, avg_val_norm = evaluate(model, val_dataset, device, cfn_action_steps)
-                #     writer.add_scalar("Loss/val", avg_val_loss, step)
-                #     writer.add_scalar("Norm/val", avg_val_norm, step)
-
             if batch_counter % 200 == 0:
                 print(f"⏱️ 平均每 200 batch 用时: "
                       f"batch={accum_batch_time:.2f}s | "
@@ -216,9 +208,9 @@ def train(cfg: TrainPipelineConfig):
         print(f"🕒 Epoch 总耗时: {time.time() - epoch_start:.2f}s")
 
         if (epoch + 1) % cfg.save_freq == 0:
-            torch.save(model.cfn.state_dict(), output_dir / f"model_epoch{epoch + 1}.pt")
+            torch.save(model.dis.state_dict(), output_dir / f"model_epoch{epoch + 1}.pt")
 
-        writer.close()
+    writer.close()
 
     print(f"✅ 所有训练完成，总耗时: {time.time() - overall_start:.2f}s")
 if __name__ == "__main__":
